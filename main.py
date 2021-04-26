@@ -1,16 +1,12 @@
 from __future__ import print_function
 
 import datetime as dt
-import os.path
 
 import pandas as pd
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from tzlocal import get_localzone
 
 # If modifying these scopes, delete the file token.json.
+from utils import get_google_calendar_service, get_local_datetime, local_datetime_from_string
+
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events']
 
 # Day at which to start creating events
@@ -24,7 +20,7 @@ PROJECT_SUMMARY = 'IE 674 Assignment 2'
 
 
 def main():
-    service = get_google_calendar_service()
+    service = get_google_calendar_service(SCOPES)
     remaining_duration = PROJECT_DURATION
     calendar_ids = [item['id'] for item in service.calendarList().list().execute()['items'] if
                     item['accessRole'] == 'owner' and not item['summary'] == 'Scheduler']
@@ -80,14 +76,6 @@ def main():
         current_day += pd.Timedelta(days=1)
 
 
-def get_local_datetime(day, time):
-    return pd.Timestamp(dt.datetime.combine(day, time), tzinfo=get_localzone())
-
-
-def local_datetime_from_string(datetime_string):
-    return pd.Timestamp(datetime_string).tz_convert(get_localzone())
-
-
 def create_event(service, start, end, summary, description='', colorId=1):
     service.events().insert(calendarId='primary', body={
         'start': {
@@ -100,27 +88,6 @@ def create_event(service, start, end, summary, description='', colorId=1):
         'description': description,
         'colorId': colorId
     }).execute()
-
-
-def get_google_calendar_service():
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-    return build('calendar', 'v3', credentials=creds)
 
 
 if __name__ == '__main__':
