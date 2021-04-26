@@ -1,12 +1,13 @@
 import datetime as dt
+
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
-from utils import get_google_calendar_service, get_local_datetime, local_datetime_from_string
-from calendar import monthrange
+from utils import get_google_calendar_service, get_local_datetime, local_datetime_from_string, get_consecutive_event, \
+    get_following_event
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-START_DATE = dt.date.today().replace(day=1)
+START_DATE = dt.date(year=2021, month=4, day=1)
 
 if __name__ == '__main__':
     service = get_google_calendar_service(SCOPES)
@@ -45,10 +46,8 @@ if __name__ == '__main__':
         while True:
             try:
                 # check if there is an adjacent/overlapping event (within 15 minutes)
-                current_event = current_date_event_data.loc[current_date_event_data[
-                    (current_date_event_data['start'] < current_event['end'] + pd.Timedelta(minutes=15)) &
-                    (current_date_event_data['end'] > current_event['end'])
-                    ]['end'].idxmax()]
+                current_event = get_consecutive_event(
+                    event=current_event, event_data=current_date_event_data, precision=15)
             except ValueError:
                 # if not, add the time window and jump to the next event
                 # ceil to 15 minutes to handle odd meeting times
@@ -56,9 +55,7 @@ if __name__ == '__main__':
                 window_start = current_event['end'].ceil('15min')
                 try:
                     # go to first event after end of current event
-                    current_event = current_date_event_data.loc[current_date_event_data[
-                        current_date_event_data['start'] - current_event['end'] > pd.Timedelta(0)
-                        ]['start'].idxmin()]
+                    current_event = get_following_event(event=current_event, event_data=current_date_event_data)
                 except ValueError:
                     bis = current_event['end'].strftime("%H:%M")
                     break

@@ -36,3 +36,13 @@ def get_local_datetime(day, time):
 
 def local_datetime_from_string(datetime_string):
     return pd.Timestamp(datetime_string).tz_convert(get_localzone())
+
+
+def get_consecutive_event(event, event_data, precision=0):
+    return event_data.loc[event_data[
+        (event_data['start'] <= event['end'].ceil(f'{precision}min')) & (event_data['end'] > event['end'])
+        ]['end'].idxmax()]
+
+
+def get_following_event(event, event_data):
+    return event_data.loc[event_data[event_data['start'] - event['end'] > pd.Timedelta(0)]['start'].idxmin()]

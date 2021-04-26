@@ -5,7 +5,8 @@ import datetime as dt
 import pandas as pd
 
 # If modifying these scopes, delete the file token.json.
-from utils import get_google_calendar_service, get_local_datetime, local_datetime_from_string
+from utils import get_google_calendar_service, get_local_datetime, local_datetime_from_string, get_consecutive_event, \
+    get_following_event
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events']
 
@@ -48,16 +49,12 @@ def main():
         while pd.notnull(current_event['end']) and current_event['end'] < end_datetime:
             try:
                 # check if there is an adjacent/overlapping event
-                current_event = event_data.loc[event_data[
-                    (event_data['start'] <= current_event['end']) & (event_data['end'] > current_event['end'])
-                    ]['end'].idxmax()]
+                current_event = get_consecutive_event(event=current_event, event_data=event_data)
             except ValueError:
                 # if not, add the time window and jump to the next event
                 window_start = current_event['end']
                 # go to first event after end of current event
-                current_event = event_data.loc[event_data[
-                    event_data['start'] - current_event['end'] > pd.Timedelta(0)
-                    ]['start'].idxmin()]
+                current_event = get_following_event(event=current_event, event_data=event_data)
                 window_end = current_event['start']
                 # Add only time windows larger than 15 minutes
                 if window_end - window_start > pd.Timedelta(minutes=15):
