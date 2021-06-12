@@ -16,8 +16,68 @@ START_DAY = dt.date.today()
 FEIERABEND = dt.time(20)
 # Estimated duration of the project to book
 PROJECT_DURATION = pd.Timedelta(hours=14)
+# Name of calendar to create events in
+TARGET_CALENDAR_NAME = 'Privat'
 # Summary for the events to create for the project
-PROJECT_SUMMARY = 'IE 674 Assignment 2'
+PROJECT_SUMMARY = 'IE 672 Prüfungsvorbereitung'
+# Description for the events to create for the project
+PROJECT_DESCRIPTION = """<div><table>
+
+ <colgroup><col>
+ <col>
+ <col>
+ </colgroup><tbody><tr>
+  <td>Topic</td>
+  <td>skim-time</td>
+  <td>Exercise time</td>
+ </tr>
+ <tr>
+  <td>DM01-DataPreprocessing-V1.pdf</td>
+  <td>01:15:00</td>
+  <td>1.5</td>
+ </tr>
+ <tr>
+  <td>DM03-AnomalyDetection-V1.pdf</td>
+  <td>01:30:00</td>
+  <td>2</td>
+ </tr>
+ <tr>
+  <td>DM04-Ensembles.pdf&nbsp;</td>
+  <td>01:15:00</td>
+  <td>2</td>
+ </tr>
+ <tr>
+  <td>DM05-TimeSeries-V1.pdf</td>
+  <td>01:15:00</td>
+  <td>1</td>
+ </tr>
+ <tr>
+  <td>DM06-NeuraINetsAndDeepLearning_V…</td>
+  <td>00:30:00</td>
+  <td>0.5</td>
+ </tr>
+ <tr>
+  <td>&nbsp;DM07-Parameter-Tuning-V1.pdf</td>
+  <td>01:15:00</td>
+  <td>1</td>
+ </tr>
+ <tr>
+  <td>DM08-Validation-V1.pdf</td>
+  <td>00:15:00</td>
+  <td>1.5</td>
+ </tr>
+ <tr>
+  <td></td>
+  <td></td>
+  <td></td>
+ </tr>
+ <tr>
+  <td></td>
+  <td>04:30:00</td>
+  <td>9.5</td>
+ </tr>
+
+</tbody></table></div>"""
 
 
 def main():
@@ -59,22 +119,28 @@ def main():
                 # Add only time windows larger than 15 minutes
                 if window_end - window_start > pd.Timedelta(minutes=15):
                     time_windows = time_windows.append({'start': window_start, 'end': window_end}, ignore_index=True)
+
+        target_calendar_id = next(item['id'] for item in service.calendarList().list().execute()['items'] if
+                                  item['accessRole'] == 'owner' and item['summary'] == TARGET_CALENDAR_NAME)
+
         # create events for all time windows
         for _, row in time_windows.iterrows():
             window_width = row['end'] - row['start']
             if remaining_duration > window_width:
-                create_event(service=service, start=row['start'], end=row['end'], summary=PROJECT_SUMMARY, colorId=2)
+                create_event(service=service, start=row['start'], end=row['end'], summary=PROJECT_SUMMARY,
+                             description=PROJECT_DESCRIPTION, colorId=2, calendar_id=target_calendar_id)
                 remaining_duration -= window_width
             else:
-                create_event(service=service, start=row['start'], end=row['start'] + remaining_duration, summary=PROJECT_SUMMARY,
-                             colorId=2)
+                create_event(service=service, start=row['start'], end=row['start'] + remaining_duration,
+                             summary=PROJECT_SUMMARY, description=PROJECT_DESCRIPTION, colorId=2,
+                             calendar_id=target_calendar_id)
                 remaining_duration -= remaining_duration
                 break
         current_day += pd.Timedelta(days=1)
 
 
-def create_event(service, start, end, summary, description='', colorId=1):
-    service.events().insert(calendarId='primary', body={
+def create_event(service, start, end, summary, description='', colorId=1, calendar_id='primary'):
+    service.events().insert(calendarId=calendar_id, body={
         'start': {
             'dateTime': start.isoformat()
         },
