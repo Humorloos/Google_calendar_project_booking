@@ -18,6 +18,8 @@ FEIERABEND = dt.time(20)
 PROJECT_DURATION = pd.Timedelta(hours=14)
 # Name of calendar to create events in
 TARGET_CALENDAR_NAME = 'Privat'
+# color id for events to create, see https://lukeboyle.com/blog-posts/2016/04/google-calendar-api---color-id
+COLOR_ID = 7
 # Summary for the events to create for the project
 PROJECT_SUMMARY = 'IE 672 Prüfungsvorbereitung'
 # Description for the events to create for the project
@@ -98,6 +100,10 @@ def main():
                 orderBy='startTime',
                 timeMax=end_datetime.isoformat()
             ).execute()['items'])
+
+        # Remove 'All Day' events
+        events = [event for event in events if 'dateTime' in event['start'].keys()]
+
         event_data = pd.DataFrame({
             'start': [local_datetime_from_string(event['start']['dateTime']) for event in events],
             'end': [local_datetime_from_string(event['end']['dateTime']) for event in events]
@@ -128,11 +134,11 @@ def main():
             window_width = row['end'] - row['start']
             if remaining_duration > window_width:
                 create_event(service=service, start=row['start'], end=row['end'], summary=PROJECT_SUMMARY,
-                             description=PROJECT_DESCRIPTION, colorId=2, calendar_id=target_calendar_id)
+                             description=PROJECT_DESCRIPTION, colorId=COLOR_ID, calendar_id=target_calendar_id)
                 remaining_duration -= window_width
             else:
                 create_event(service=service, start=row['start'], end=row['start'] + remaining_duration,
-                             summary=PROJECT_SUMMARY, description=PROJECT_DESCRIPTION, colorId=2,
+                             summary=PROJECT_SUMMARY, description=PROJECT_DESCRIPTION, colorId=COLOR_ID,
                              calendar_id=target_calendar_id)
                 remaining_duration -= remaining_duration
                 break
