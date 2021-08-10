@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import datetime as dt
+from typing import Dict
 
 import pandas as pd
 
@@ -60,65 +61,74 @@ gesamt	43:15:00"""
 
 def main():
     client_provider = GoogleApiClientProvider(SCOPES)
+
     calendar_service = client_provider.get_google_calendar_service('calendar', 'v3')
-    remaining_duration = PROJECT_DURATION
     calendar_ids = [item['id'] for item in calendar_service.calendarList().list().execute()['items'] if
                     item['accessRole'] == 'owner' and not item['summary'] == 'Scheduler']
     current_day = START_DAY
     while remaining_duration > pd.Timedelta(0):
         # get all events for the current day
-        events = []
         end_datetime = get_local_datetime(current_day, FEIERABEND)
-        for calendar_id in calendar_ids:
-            events.extend(calendar_service.events().list(
-                calendarId=calendar_id,
-                timeMin=get_local_datetime(current_day, dt.time(0)).isoformat(),
-                singleEvents=True,
-                orderBy='startTime',
-                timeMax=end_datetime.isoformat()
-            ).execute()['items'])
+        start_rfc_3339_timestamp = get_local_datetime(current_day, dt.time(0)).isoformat()
+        end_rfc_3339_timestamp = end_datetime.isoformat()
+        events = [event for calendar_id in calendar_ids for event in calendar_service.events().list(
+            calendarId=calendar_id,
+            timeMin=start_rfc_3339_timestamp,
+            timeMax=end_rfc_3339_timestamp,
+            singleEvents=True,
+            orderBy='startTime',
+        ).execute()['items'] if 'dateTime' in event['start'].keys()]
 
         # Remove 'All Day' events
         events = [event for event in events if 'dateTime' in event['start'].keys()]
 
-        event_data = pd.DataFrame({
-            'start': [local_datetime_from_string(event['start']['dateTime']) for event in events],
-            'end': [local_datetime_from_string(event['end']['dateTime']) for event in events]
-        })
-        event_data = event_data.append({'start': end_datetime, 'end': pd.NaT}, ignore_index=True)
-        time_windows = pd.DataFrame(columns=['start', 'end'])
-        current_event = event_data.loc[event_data['start'].idxmin()]
+        event_df = pd.DataFrame(
+            # Events
+            [{
+                'start': local_datetime_from_string(event['start']['dateTime']),
+                'end': local_datetime_from_string(event['end']['dateTime'])
+            } for event in events] +
+            # # Tasks
+            # [get_task_timeframe(task) for task in tasks] +
+            # End placeholder
+            [{'start': end_datetime, 'end': pd.NaT}]
+        ).sort_values(by='start')
+
+        current_event = event_df.iloc[0]
         # find all time windows for the current day
         while pd.notnull(current_event['end']) and current_event['end'] < end_datetime:
             # check if there is an adjacent/overlapping event
-            current_event = get_consecutive_event(event=current_event, event_data=event_data)
-            if not current_event:
+            consecutive_event = get_consecutive_event(event=current_event, event_data=event_df)
+            if consecutive_event is None:
                 # if not, add the time window and jump to the next event
                 window_start = current_event['end']
                 # go to first event after end of current event
-                current_event = get_following_event(event=current_event, event_data=event_data)
+                current_event = get_following_event(event=current_event, event_data=event_df)
                 window_end = current_event['start']
                 # Add only time windows larger than 15 minutes
-                if window_end - window_start > pd.Timedelta(minutes=15):
-                    time_windows = time_windows.append({'start': window_start, 'end': window_end}, ignore_index=True)
+                window_width = window_end - window_start
+                if window_width > pd.Timedelta(minutes=15):
+                    if window_width < remaining_duration:
+                        time_windows = time_windows.append({'start': window_start, 'end': window_end},
+                                                           ignore_index=True)
+                        remaining_duration -= window_width
+                    else:
+                        time_windows = time_windows.append(
+                            {'start': window_start, 'end': window_start + remaining_duration}, ignore_index=True)
+                        remaining_duration -= remaining_duration
+                        break
 
-        target_calendar_id = next(item['id'] for item in calendar_service.calendarList().list().execute()['items'] if
-                                  item['accessRole'] == 'owner' and item['summary'] == TARGET_CALENDAR_NAME)
-
-        # create events for all time windows
-        for _, row in time_windows.iterrows():
-            window_width = row['end'] - row['start']
-            if remaining_duration > window_width:
-                create_event(service=calendar_service, start=row['start'], end=row['end'], summary=PROJECT_SUMMARY,
-                             description=PROJECT_DESCRIPTION, colorId=COLOR_ID, calendar_id=target_calendar_id)
-                remaining_duration -= window_width
             else:
-                create_event(service=calendar_service, start=row['start'], end=row['start'] + remaining_duration,
-                             summary=PROJECT_SUMMARY, description=PROJECT_DESCRIPTION, colorId=COLOR_ID,
-                             calendar_id=target_calendar_id)
-                remaining_duration -= remaining_duration
-                break
+                current_event = consecutive_event
         current_day += pd.Timedelta(days=1)
+
+    target_calendar_id = next(item['id'] for item in calendar_service.calendarList().list().execute()['items'] if
+                              item['accessRole'] == 'owner' and item['summary'] == TARGET_CALENDAR_NAME)
+
+    # create events for all time windows
+    for _, row in time_windows.iterrows():
+        create_event(service=calendar_service, start=row['start'], end=row['end'], summary=PROJECT_SUMMARY,
+                     description=PROJECT_DESCRIPTION, colorId=COLOR_ID, calendar_id=target_calendar_id)
 
 
 def create_event(service, start, end, summary, description='', colorId=1, calendar_id='primary'):
@@ -133,6 +143,18 @@ def create_event(service, start, end, summary, description='', colorId=1, calend
         'description': description,
         'colorId': colorId
     }).execute()
+
+
+def items_or_empty_list(response: Dict):
+    if 'items' in response.keys():
+        return response['items']
+    else:
+        return []
+
+
+# def get_task_timeframe(task: Dict):
+#     start_time = local_datetime_from_string(task['due'])
+#     return {'start': start_time, 'end': start_time + TASK_DURATION}
 
 
 if __name__ == '__main__':
