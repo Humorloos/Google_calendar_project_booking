@@ -23,6 +23,8 @@ PROJECT_DURATION = pd.Timedelta(hours=43, minutes=15)
 TARGET_CALENDAR_NAME = 'Privat'
 # color id for events to create, see https://lukeboyle.com/blog/posts/google-calendar-api-color-id
 COLOR_ID = 7
+# # Time to block for tasks
+# TASK_DURATION = dt.timedelta(minutes=15)
 # Summary for the events to create for the project
 PROJECT_SUMMARY = 'IE 672 Prüfungsvorbereitung'
 # Description for the events to create for the project
@@ -65,6 +67,11 @@ def main():
     calendar_service = client_provider.get_google_calendar_service('calendar', 'v3')
     calendar_ids = [item['id'] for item in calendar_service.calendarList().list().execute()['items'] if
                     item['accessRole'] == 'owner' and not item['summary'] == 'Scheduler']
+    # TODO: When tasks api is better (tasks are retrieved with correct due date), add the task lines again.
+    # tasks_service = client_provider.get_google_calendar_service('tasks', 'v1')
+    # tasklist_ids = [item['id'] for item in tasks_service.tasklists().list().execute()['items']]
+    time_windows = pd.DataFrame(columns=['start', 'end'])
+    remaining_duration = PROJECT_DURATION
     current_day = START_DAY
     while remaining_duration > pd.Timedelta(0):
         # get all events for the current day
@@ -79,8 +86,12 @@ def main():
             orderBy='startTime',
         ).execute()['items'] if 'dateTime' in event['start'].keys()]
 
-        # Remove 'All Day' events
-        events = [event for event in events if 'dateTime' in event['start'].keys()]
+        # # get all tasks for the current day
+        # tasks = [task for tasklist_id in tasklist_ids for task in items_or_empty_list(tasks_service.tasks().list(
+        #     tasklist=tasklist_id,
+        #     dueMin=start_rfc_3339_timestamp,
+        #     dueMax=end_rfc_3339_timestamp,
+        # ).execute())]
 
         event_df = pd.DataFrame(
             # Events
