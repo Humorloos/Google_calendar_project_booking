@@ -1,33 +1,7 @@
 import datetime as dt
-import os.path
 
 import pandas as pd
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 from tzlocal import get_localzone
-
-
-def get_google_calendar_service(scopes):
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', scopes)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', scopes)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-    return build('calendar', 'v3', credentials=creds)
 
 
 def get_local_datetime(day, time):
@@ -39,10 +13,58 @@ def local_datetime_from_string(datetime_string):
 
 
 def get_consecutive_event(event, event_data, precision=0):
-    return event_data.loc[event_data[
-        (event_data['start'] <= event['end'].ceil(f'{precision}min')) & (event_data['end'] > event['end'])
-        ]['end'].idxmax()]
+    try:
+        return event_data.loc[event_data[
+            (event_data['start'] <= event['end'].ceil(f'{precision}min')) & (event_data['end'] > event['end'])
+            ]['end'].idxmax()]
+    except ValueError:
+        return None
 
 
 def get_following_event(event, event_data):
     return event_data.loc[event_data[event_data['start'] - event['end'] > pd.Timedelta(0)]['start'].idxmin()]
+
+
+# noinspection PyPep8Naming
+class cached_property(object):
+    """
+    property for caching of attributes, code adapted from
+    https://stackoverflow.com/questions/17330160/how-does-the-property-decorator-work
+    """
+
+    def __init__(self, fget, fset=None, fdel=None, name=None, doc=None):
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+        self.__name__ = name or fget.__name__
+        self.__module__ = fget.__module__
+        self.__doc__ = doc or fget.__doc__
+
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self
+        try:
+            return obj.__dict__[self.__name__]
+        except KeyError:
+            value = self.fget(obj)
+            obj.__dict__[self.__name__] = value
+            return value
+
+    def __set__(self, obj, value):
+        if self.fset is None:
+            raise AttributeError("can't set attribute")
+        self.fset(obj, value)
+
+    def __delete__(self, obj):
+        try:
+            del obj.__dict__[self.__name__]
+        except KeyError:
+            pass
+        if self.fdel is not None:
+            self.fdel(obj)
+
+    def setter(self, fset):
+        return type(self)(self.fget, fset, self.fdel, self.__name__, self.__doc__)
+
+    def deleter(self, fdel):
+        return type(self)(self.fget, self.fset, fdel, self.__name__, self.__doc__)
