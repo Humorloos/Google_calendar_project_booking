@@ -1,3 +1,6 @@
+"""
+Script for setting up google calendar watches for specified time and save map from uuids to calendar ids
+"""
 import datetime as dt
 import pickle
 import uuid
@@ -9,7 +12,7 @@ from utils import get_calendar_ids
 
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
 WATCH_DURATION = str(int(dt.timedelta(minutes=2).total_seconds()))
-CALENDAR_LOOKUP_PATH = Path()
+CALENDAR_LOOKUP_PATH = Path('resources').joinpath('calendar_lookup.pickle')
 
 client_provider = GoogleApiClientProvider(SCOPES)
 
@@ -33,4 +36,5 @@ for channel_id, calendar_id in calendar_lookup.items():
         }
     ).execute()
 
-pickle.dump(calendar_lookup, )
+with open(CALENDAR_LOOKUP_PATH, 'wb') as out_file:
+    pickle.dump(calendar_lookup, out_file)

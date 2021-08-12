@@ -1,0 +1,34 @@
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 128-168-929
+ * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+127.0.0.1 - - [12/Aug/2021 17:04:57] "POST / HTTP/1.1" 405 -
+127.0.0.1 - - [12/Aug/2021 17:05:19] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [12/Aug/2021 17:05:23] "POST / HTTP/1.1" 405 -
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 128-168-929
+ * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+hi
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 128-168-929
+ * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+Headers: X-Goog-Channel-Id: 50e6f551-fb6e-11eb-94dd-b4ae2be9d8e1
+X-Goog-Channel-Expiration: Fri, 13 Aug 2021 13:08:00 GMT
+X-Goog-Resource-State: exists
+X-Goog-Message-Number: 34040
+X-Goog-Resource-Id: xgBFqktDs34yy9NxRVT09UWC-YI
+X-Goog-Resource-Uri: https://www.googleapis.com/calendar/v3/calendars/l.loos95%40gmail.com/events?alt=json
+X-Goog-Channel-Token: my token
+User-Agent: PostmanRuntime/7.28.3
+Accept: */*
+Postman-Token: 0ab7db06-48a7-43d1-bc9a-f5c288fac786
+Host: 127.0.0.1:5000
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Length: 0
+
+
+Body: b''
+127.0.0.1 - - [12/Aug/2021 17:12:55] "POST / HTTP/1.1" 405 -

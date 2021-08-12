@@ -3,8 +3,6 @@ import datetime as dt
 import pandas as pd
 from tzlocal import get_localzone
 
-from batchUpdate import calendar_service
-
 
 def get_local_datetime(day, time):
     return pd.Timestamp(dt.datetime.combine(day, time), tzinfo=get_localzone())
@@ -77,7 +75,7 @@ def get_calendar_ids(calendar_service):
             item['accessRole'] == 'owner' and not item['summary'] == 'Scheduler']
 
 
-def calendar_id_from_summary(summary):
+def calendar_id_from_summary(calendar_service, summary):
     return next(
         item for item in calendar_service.calendarList().list().execute()['items'] if item['summary'] == summary
     )['id']
