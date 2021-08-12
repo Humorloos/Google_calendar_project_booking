@@ -1,4 +1,6 @@
 import datetime as dt
+import pickle
+from pathlib import Path
 
 import pandas as pd
 from tzlocal import get_localzone
@@ -79,3 +81,10 @@ def calendar_id_from_summary(calendar_service, summary):
     return next(
         item for item in calendar_service.calendarList().list().execute()['items'] if item['summary'] == summary
     )['id']
+
+
+CALENDAR_LOOKUP_PATH = Path('resources').joinpath('calendar_lookup.csv')
+
+
+def get_calendar_lookup():
+    return pd.read_csv(CALENDAR_LOOKUP_PATH, index_col='channel_id')
