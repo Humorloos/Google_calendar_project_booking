@@ -3,6 +3,8 @@ import datetime as dt
 import pandas as pd
 from tzlocal import get_localzone
 
+from batchUpdate import calendar_service
+
 
 def get_local_datetime(day, time):
     return pd.Timestamp(dt.datetime.combine(day, time), tzinfo=get_localzone())
@@ -68,3 +70,14 @@ class cached_property(object):
 
     def deleter(self, fdel):
         return type(self)(self.fget, self.fset, fdel, self.__name__, self.__doc__)
+
+
+def get_calendar_ids(calendar_service):
+    return [item['id'] for item in calendar_service.calendarList().list().execute()['items'] if
+            item['accessRole'] == 'owner' and not item['summary'] == 'Scheduler']
+
+
+def calendar_id_from_summary(summary):
+    return next(
+        item for item in calendar_service.calendarList().list().execute()['items'] if item['summary'] == summary
+    )['id']

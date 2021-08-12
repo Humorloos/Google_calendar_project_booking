@@ -3,11 +3,12 @@ import datetime as dt
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
-from utils import get_google_calendar_service, get_local_datetime, local_datetime_from_string, get_consecutive_event, \
+from utils import get_local_datetime, local_datetime_from_string, get_consecutive_event, \
     get_following_event
+from googleApiClientProvider import get_google_calendar_service
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-START_DATE = dt.date(year=2021, month=4, day=1)
+START_DATE = dt.date(year=2021, month=7, day=1)
 
 if __name__ == '__main__':
     service = get_google_calendar_service(SCOPES)

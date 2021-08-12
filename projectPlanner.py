@@ -4,14 +4,17 @@ import datetime as dt
 from typing import Dict
 
 import pandas as pd
+import googleApiScopes.calendar
+import googleApiScopes.tasks
 
 # If modifying these scopes, delete the file token.json.
 from googleApiClientProvider import GoogleApiClientProvider
 from utils import get_local_datetime, local_datetime_from_string, get_consecutive_event, \
-    get_following_event
+    get_following_event, get_calendar_ids
 
-SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events',
-          'https://www.googleapis.com/auth/tasks.readonly']
+SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY,
+          googleApiScopes.calendar.EVENTS,
+          googleApiScopes.tasks.TASKS_READ_ONLY]
 
 # Day at which to start creating events
 START_DAY = dt.date.today()
@@ -26,7 +29,7 @@ COLOR_ID = 7
 # # Time to block for tasks
 # TASK_DURATION = dt.timedelta(minutes=15)
 # Summary for the events to create for the project
-PROJECT_SUMMARY = 'IE 672 Prüfungsvorbereitung'
+PROJECT_SUMMARY = 'IE 674 Prüfungsvorbereitung'
 # Description for the events to create for the project
 PROJECT_DESCRIPTION = """Prüfungsvorbereitung	
 Karten	
@@ -64,9 +67,8 @@ gesamt	43:15:00"""
 def main():
     client_provider = GoogleApiClientProvider(SCOPES)
 
-    calendar_service = client_provider.get_google_calendar_service('calendar', 'v3')
-    calendar_ids = [item['id'] for item in calendar_service.calendarList().list().execute()['items'] if
-                    item['accessRole'] == 'owner' and not item['summary'] == 'Scheduler']
+    calendar_service = client_provider.get_service('calendar', 'v3')
+    calendar_ids = get_calendar_ids(calendar_service)
     # TODO: When tasks api is better (tasks are retrieved with correct due date), add the task lines again.
     # tasks_service = client_provider.get_google_calendar_service('tasks', 'v1')
     # tasklist_ids = [item['id'] for item in tasks_service.tasklists().list().execute()['items']]

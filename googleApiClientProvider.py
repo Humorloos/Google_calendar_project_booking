@@ -34,5 +34,5 @@ class GoogleApiClientProvider:
                 token.write(creds.to_json())
         return creds
 
-    def get_google_calendar_service(self, name: str, version: str):
+    def get_service(self, name: str, version: str):
         return build(name, version, credentials=self.credentials)
