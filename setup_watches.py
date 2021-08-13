@@ -30,7 +30,7 @@ if len(calendar_ids) > len(calendar_lookup):
         {'calendar_id': calendar_id for calendar_id in calendar_ids if
          calendar_id not in calendar_lookup['calendar_id'].values}, ignore_index=True
     )
-calendar_lookup.index = pd.Series(len(calendar_lookup) * [str(uuid.uuid1())], name='channel_id')
+calendar_lookup.index = pd.Series([str(uuid.uuid1()) for _ in calendar_lookup.index], name='channel_id')
 
 responses = [calendar_service.events().watch(
     calendarId=row['calendar_id'],
