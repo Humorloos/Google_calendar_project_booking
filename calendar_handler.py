@@ -8,10 +8,9 @@ from flask_restful import Resource, Api
 
 import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH
+from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_SUFFIX
 
 CHANNEL_ID_KEY = 'X-Goog-Channel-Id'
-PROJECT_SUFFIX = ' -p'
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
 
 app = Flask(__name__)

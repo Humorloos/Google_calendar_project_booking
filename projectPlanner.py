@@ -10,7 +10,7 @@ import googleApiScopes.tasks
 # If modifying these scopes, delete the file token.json.
 from googleApiClientProvider import GoogleApiClientProvider
 from utils import get_local_datetime, local_datetime_from_string, get_consecutive_event, \
-    get_following_event, get_calendar_ids
+    get_following_event, get_calendar_ids, PROJECT_SUFFIX
 
 SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY,
           googleApiScopes.calendar.EVENTS,
@@ -140,8 +140,9 @@ def main():
 
     # create events for all time windows
     for _, row in time_windows.iterrows():
-        create_event(service=calendar_service, start=row['start'], end=row['end'], summary=PROJECT_SUMMARY,
-                     description=PROJECT_DESCRIPTION, colorId=COLOR_ID, calendar_id=target_calendar_id)
+        create_event(service=calendar_service, start=row['start'], end=row['end'],
+                     summary=PROJECT_SUMMARY + PROJECT_SUFFIX, description=PROJECT_DESCRIPTION, colorId=COLOR_ID,
+                     calendar_id=target_calendar_id)
 
 
 def create_event(service, start, end, summary, description='', colorId=1, calendar_id='primary'):
