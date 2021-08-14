@@ -17,16 +17,25 @@ def local_datetime_from_string(datetime_string):
 
 
 def get_consecutive_event(event, event_data, precision=0):
-    try:
-        return event_data.loc[event_data[
-            (event_data['start'] <= event['end'].ceil(f'{precision}min')) & (event_data['end'] > event['end'])
-            ]['end'].idxmax()]
-    except ValueError:
+    """
+    Gets consecutive or overlapping event that ends at the latest point if there is any, otherwise returns None
+    """
+    overlapping_or_consecutive_events = event_data[
+        (event_data['start'] <= event['end'].ceil(f'{precision}min')) &
+        (event_data['end'] > event['end'])
+        ]
+    if len(overlapping_or_consecutive_events) > 0:
+        return event_data.loc[overlapping_or_consecutive_events['end'].idxmax()]
+    else:
         return None
 
 
 def get_following_event(event, event_data):
-    return event_data.loc[event_data[event_data['start'] - event['end'] > pd.Timedelta(0)]['start'].idxmin()]
+    return event_data.loc[
+        event_data[
+            event_data['start'] - event['end'] > pd.Timedelta(0)
+            ]['start'].idxmin()
+    ]
 
 
 # noinspection PyPep8Naming
@@ -87,3 +96,97 @@ def calendar_id_from_summary(calendar_service, summary):
 
 def get_calendar_lookup():
     return pd.read_csv(CALENDAR_LOOKUP_PATH, index_col='channel_id')
+
+
+def extract_local_datetime_or_nat(dict_in):
+    if 'dateTime' in dict_in.keys():
+        return local_datetime_from_string(dict_in['dateTime'])
+    else:
+        return pd.NaT
+
+
+def create_event(service, start, end, summary, description='', color_id=1, calendar_id='primary'):
+    service.events().insert(calendarId=calendar_id, body={
+        'start': {
+            'dateTime': start.isoformat()
+        },
+        'end': {
+            'dateTime': end.isoformat()
+        },
+        'summary': summary,
+        'description': description,
+        'colorId': color_id
+    }).execute()
+
+
+def create_events_in_windows(calendar_ids, calendar_service, start_timestamp, duration,
+                             target_event_summary, target_event_description, target_calendar_id, feierabend,
+                             target_event_color_id):
+    time_windows = pd.DataFrame(columns=['start', 'end'])
+    remaining_duration = duration
+    first_week = True
+    while remaining_duration > pd.Timedelta(0):
+        # get all events for one week
+        end_timestamp = start_timestamp + dt.timedelta(weeks=1)  #get_local_datetime(current_day, FEIERABEND)
+        start_rfc_3339_timestamp = start_timestamp.isoformat()
+        end_rfc_3339_timestamp = end_timestamp.isoformat()
+        events = pd.DataFrame([
+            event for calendar_id in calendar_ids for event in calendar_service.events().list(
+                calendarId=calendar_id,
+                timeMax=end_rfc_3339_timestamp,
+                timeMin=start_rfc_3339_timestamp,
+                singleEvents=True,
+            ).execute()['items']
+            if 'dateTime' in event['start'].keys()
+        ])
+        events[['start', 'end']] = events[['start', 'end']].apply(lambda col: col.apply(extract_local_datetime_or_nat))
+        events = events.sort_values(by='start', ignore_index=True)
+
+        # # get all tasks for the current day
+        # tasks = [task for tasklist_id in tasklist_ids for task in items_or_empty_list(tasks_service.tasks().list(
+        #     tasklist=tasklist_id,
+        #     dueMin=start_rfc_3339_timestamp,
+        #     dueMax=end_rfc_3339_timestamp,
+        # ).execute())]
+        if first_week:
+            current_event = events.loc[0]
+        # find all time windows for the current day
+        while True:
+            if current_event.name == events.index.max():
+                break
+            # check if there is an adjacent/overlapping event
+            consecutive_event = get_consecutive_event(event=current_event, event_data=events)
+            if consecutive_event is None:
+                # if not, add the time window and jump to the next event
+                window_start = current_event['end']
+                # go to first event after end of current event
+                current_event = get_following_event(event=current_event, event_data=events)
+                window_end = current_event['start']
+                # if next event is on next day, set window until feierabend or jump to next day
+                if window_end.date() - window_start.date() > dt.timedelta(0):
+                    if window_start.time() < feierabend:
+                        window_end = get_local_datetime(window_start.date(), feierabend)
+                    else:
+                        continue
+                # Add only time windows larger than 15 minutes
+                window_width = window_end - window_start
+                if window_width > pd.Timedelta(minutes=15):
+                    if window_width < remaining_duration:
+                        time_windows = time_windows.append({'start': window_start, 'end': window_end},
+                                                           ignore_index=True)
+                        remaining_duration -= window_width
+                    else:
+                        time_windows = time_windows.append(
+                            {'start': window_start, 'end': window_start + remaining_duration}, ignore_index=True)
+                        remaining_duration -= remaining_duration
+                        break
+
+            else:
+                current_event = consecutive_event
+        start_timestamp = end_timestamp
+
+    # create events for all time windows
+    for _, row in time_windows.iterrows():
+        create_event(service=calendar_service, start=row['start'], end=row['end'],
+                     summary=target_event_summary, description=target_event_description, color_id=target_event_color_id,
+                     calendar_id=target_calendar_id)
