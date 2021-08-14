@@ -192,3 +192,45 @@ def create_events_in_windows(calendar_ids, calendar_service, start_timestamp, du
         create_event(service=calendar_service, start=row['start'], end=row['end'],
                      summary=target_event_summary, description=target_event_description, color_id=target_event_color_id,
                      calendar_id=target_calendar_id)
+
+
+def get_event_df_and_next_sync_token(calendar_service, calendar_id, sync_token=None, query=None, time_max=None,
+                                     time_min=None):
+    events, sync_token = get_events_and_next_sync_token(
+        calendar_id, calendar_service, query, sync_token, time_max, time_min)
+    return pd.DataFrame(events), sync_token
+
+
+def get_events_and_next_sync_token(calendar_id, calendar_service, query, sync_token, time_max, time_min):
+    updated_events_list_response = calendar_service.events().list(
+        calendarId=calendar_id,
+        syncToken=sync_token,
+        maxResults=2500,
+        singleEvents=True,
+        q=query,
+        # latest time that events may start
+        timeMax=time_max,
+        # earliest time that events may end
+        timeMin=time_min,
+    ).execute()
+    events = updated_events_list_response['items']
+    while 'nextSyncToken' not in updated_events_list_response.keys():
+        updated_events_list_response = calendar_service.events().list(
+            calendarId=calendar_id,
+            syncToken=sync_token,
+            maxResults=2500,
+            singleEvents=True,
+            q=query,
+            # latest time that events may start
+            timeMax=time_max,
+            # earliest time that events may end
+            timeMin=time_min,
+            pageToken=updated_events_list_response['nextPageToken'],
+        ).execute()
+        events.extend(updated_events_list_response['items'])
+    sync_token = updated_events_list_response['nextSyncToken']
+    return events, sync_token
+
+
+def event_row_to_body(updated_event):
+    return updated_event[~updated_event.isnull()].to_dict()
