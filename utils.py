@@ -105,8 +105,8 @@ def extract_local_datetime_or_nat(dict_in):
         return pd.NaT
 
 
-def create_event(service, start, end, summary, description='', color_id=1, calendar_id='primary'):
-    service.events().insert(calendarId=calendar_id, body={
+def create_event(service, start, end, summary, description='', calendar_id='primary', color_id=None):
+    body = {
         'start': {
             'dateTime': start.isoformat()
         },
@@ -115,13 +115,15 @@ def create_event(service, start, end, summary, description='', color_id=1, calen
         },
         'summary': summary,
         'description': description,
-        'colorId': color_id
-    }).execute()
+    }
+    if color_id is not None:
+        body['colorId'] = color_id
+    service.events().insert(calendarId=calendar_id, body=body).execute()
 
 
 def create_events_in_windows(calendar_ids, calendar_service, start_timestamp, duration,
                              target_event_summary, target_event_description, target_calendar_id, feierabend,
-                             target_event_color_id):
+                             target_event_color_id=None):
     time_windows = pd.DataFrame(columns=['start', 'end'])
     remaining_duration = duration
     first_week = True
