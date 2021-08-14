@@ -9,9 +9,7 @@ from flask_restful import Resource, Api
 
 import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_SUFFIX, local_datetime_from_string, \
-    get_local_datetime, extract_local_datetime_or_nat, create_events_in_windows, get_event_df_and_next_sync_token, \
-    event_row_to_body
+from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_SUFFIX, event_row_to_body
 
 FEIERABEND = dt.time(20)
 
@@ -32,7 +30,7 @@ logger.setLevel(logging.INFO)
 
 # setup google calendar interface
 api_provider = GoogleApiClientProvider(SCOPES)
-calendar_service = api_provider.get_service('calendar', 'v3')
+calendar_service = api_provider.get_calendar_service()
 
 
 # log all requests
@@ -62,8 +60,7 @@ class CalendarHandler(Resource):
         # get updated events
         calendar_row = calendar_lookup.loc[channel_id]
         target_calendar_id = calendar_row['calendar_id']
-        updated_events, sync_token = get_event_df_and_next_sync_token(
-            calendar_service=calendar_service,
+        updated_events, sync_token = calendar_service.get_event_df_and_next_sync_token(
             sync_token=calendar_row['sync_token'],
             calendar_id=target_calendar_id,
         )
@@ -79,8 +76,7 @@ class CalendarHandler(Resource):
                             updated_event['summary'] not in updated_projects:
 
                         # get events that belong to this project
-                        project_events, sync_token = get_event_df_and_next_sync_token(
-                            calendar_service=calendar_service,
+                        project_events, sync_token = calendar_service.get_event_df_and_next_sync_token(
                             calendar_id=target_calendar_id,
                             query=updated_event['summary'][:-3],
                         )
@@ -92,25 +88,23 @@ class CalendarHandler(Resource):
                                     project_event['summary'] == updated_event['summary'] and \
                                     project_event['description'] != new_description:
                                 project_event['description'] = new_description
-                                calendar_service.events().update(
+                                calendar_service.service.events().update(
                                     calendarId=target_calendar_id,
                                     eventId=project_event['id'],
                                     body=event_row_to_body(project_event),
                                 ).execute()
 
                         updated_projects.add(updated_event['summary'])
-
-                    if updated_event['colorId'] == SPLIT_COLOR_ID:
-                        end_timestamp = local_datetime_from_string(updated_event['end']['dateTime'])
-                        feierabend_timestamp = get_local_datetime(end_timestamp.date(), FEIERABEND)
+                    if 'colorId' in updated_event.index and updated_event['colorId'] == SPLIT_COLOR_ID:
+                        end_timestamp = calendar_service.local_datetime_from_string(updated_event['end']['dateTime'])
+                        feierabend_timestamp = calendar_service.get_local_datetime(end_timestamp.date(), FEIERABEND)
                         split_timestamp = None
                         if end_timestamp > feierabend_timestamp:
                             split_timestamp = feierabend_timestamp
                         else:
                             interrupting_events = pd.DataFrame()
                             for calendar_id in calendar_lookup['calendar_id'].values:
-                                events_to_append, sync_token = get_event_df_and_next_sync_token(
-                                    calendar_service=calendar_service,
+                                events_to_append, sync_token = calendar_service.get_event_df_and_next_sync_token(
                                     calendar_id=calendar_id,
                                     time_max=updated_event['end']['dateTime'],
                                     time_min=updated_event['start']['dateTime'],
@@ -122,7 +116,7 @@ class CalendarHandler(Resource):
                                 ]
                             if len(interrupting_events) > 0:
                                 split_timestamp = interrupting_events['start'].apply(
-                                    extract_local_datetime_or_nat).min()
+                                    calendar_service.extract_local_datetime_or_nat).min()
                         if split_timestamp is not None:
                             duration_to_trim = end_timestamp - split_timestamp
 
@@ -130,7 +124,7 @@ class CalendarHandler(Resource):
                             updated_event = event_row_to_body(updated_event)
                             del updated_event['colorId']
                             updated_event['end']['dateTime'] = split_timestamp.isoformat()
-                            calendar_service.events().update(
+                            calendar_service.service.events().update(
                                 calendarId=target_calendar_id,
                                 eventId=updated_event['id'],
                                 body=updated_event
@@ -138,9 +132,8 @@ class CalendarHandler(Resource):
 
                             # create new event starting at next free position and ending after time cut from original event
                             # that is otherwise identical
-                            create_events_in_windows(
+                            calendar_service.create_events_in_windows(
                                 calendar_ids=calendar_lookup['calendar_id'].values,
-                                calendar_service=calendar_service,
                                 start_timestamp=split_timestamp,
                                 duration=duration_to_trim,
                                 target_event_summary=updated_event['summary'],

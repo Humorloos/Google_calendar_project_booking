@@ -5,6 +5,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from calendar_service import CalendarService
 from utils import cached_property
 
 
@@ -36,3 +37,6 @@ class GoogleApiClientProvider:
 
     def get_service(self, name: str, version: str):
         return build(name, version, credentials=self.credentials)
+
+    def get_calendar_service(self):
+        return CalendarService(self.get_service('calendar', 'v3'))

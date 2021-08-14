@@ -8,22 +8,22 @@ import pandas as pd
 
 import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_ids, CALENDAR_LOOKUP_PATH, get_calendar_lookup
+from utils import CALENDAR_LOOKUP_PATH, get_calendar_lookup
 
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
 WATCH_DURATION = str(int(dt.timedelta(days=1, hours=6).total_seconds()))
 
 client_provider = GoogleApiClientProvider(SCOPES)
-calendar_service = client_provider.get_service(name="calendar", version='v3')
+calendar_service = client_provider.get_calendar_service()
 
 # Close old channels
 calendar_lookup = get_calendar_lookup()
 
 for channel_id, row in calendar_lookup.iterrows():
-    calendar_service.channels().stop(body={'id': channel_id, 'resourceId': row['resource_id']})
+    calendar_service.service.channels().stop(body={'id': channel_id, 'resourceId': row['resource_id']})
 
 # Open new channels
-calendar_ids = get_calendar_ids(calendar_service)
+calendar_ids = calendar_service.calendar_ids
 calendar_lookup = calendar_lookup[calendar_lookup['calendar_id'].isin(calendar_ids)]
 if len(calendar_ids) > len(calendar_lookup):
     calendar_lookup = calendar_lookup.append(
@@ -32,7 +32,7 @@ if len(calendar_ids) > len(calendar_lookup):
     )
 calendar_lookup.index = pd.Series([str(uuid.uuid1()) for _ in calendar_lookup.index], name='channel_id')
 
-responses = [calendar_service.events().watch(
+responses = [calendar_service.service.events().watch(
     calendarId=row['calendar_id'],
     body={
         "id": channel_id,

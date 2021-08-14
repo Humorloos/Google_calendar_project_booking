@@ -41,15 +41,15 @@ SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_REA
 
 client_provider = GoogleApiClientProvider(SCOPES)
 
-calendar_service = client_provider.get_service(name="calendar", version='v3')
+calendar_service = client_provider.get_calendar_service()
 
-calendar_ids = get_calendar_ids(calendar_service)
+calendar_ids = calendar_service.calendar_ids
 
 
 channel_ids = [str(uuid.uuid1()) for _ in calendar_ids]
 watch_duration = str(int(dt.timedelta(days=1).total_seconds()))
 watch_responses = [
-    calendar_service.events().watch(
+    calendar_service.service.events().watch(
         calendarId=calendar_id,
         body={
             "id": channel_id,
@@ -65,7 +65,7 @@ watch_responses = [
 ]
 
 target_events = [item for calendar_id in calendar_ids for item in
-                 calendar_service.events().list(calendarId=calendar_id, q=TARGET_TITLE).execute()['items'] if
+                 calendar_service.service.events().list(calendarId=calendar_id, q=TARGET_TITLE).execute()['items'] if
                  item['summary'] == TARGET_TITLE]
 
 for target_event in target_events:
