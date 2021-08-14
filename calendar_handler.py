@@ -130,14 +130,18 @@ class CalendarHandler(Resource):
                                 body=updated_event
                             ).execute()
 
-                            # create new event starting at next free position and ending after time cut from original event
-                            # that is otherwise identical
+                            # create new event starting at next free position and ending after time cut from original
+                            # event that is otherwise identical
+                            if 'description' in updated_event.keys():
+                                description = updated_event['description']
+                            else:
+                                description = ''
                             calendar_service.create_events_in_windows(
                                 calendar_ids=calendar_lookup['calendar_id'].values,
                                 start_timestamp=split_timestamp,
                                 duration=duration_to_trim,
                                 target_event_summary=updated_event['summary'],
-                                target_event_description=updated_event['description'],
+                                target_event_description=description,
                                 target_calendar_id=target_calendar_id,
                                 feierabend=FEIERABEND,
                             )
