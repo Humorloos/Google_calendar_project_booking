@@ -1,10 +1,8 @@
-import datetime as dt
 from pathlib import Path
 
 import pandas as pd
-from tzlocal import get_localzone
 
-CALENDAR_LOOKUP_PATH = Path('resources').joinpath('calendar_lookup.csv')
+CALENDAR_LOOKUP_PATH = Path(__file__).joinpath('resources').joinpath('calendar_lookup.csv')
 PROJECT_SUFFIX = ' -p'
 
 
