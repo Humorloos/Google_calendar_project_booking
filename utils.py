@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-CALENDAR_LOOKUP_PATH = Path(__file__).joinpath('resources').joinpath('calendar_lookup.csv')
+CALENDAR_LOOKUP_PATH = Path(__file__).parent.joinpath('resources').joinpath('calendar_lookup.csv')
 PROJECT_SUFFIX = ' -p'
 
 
