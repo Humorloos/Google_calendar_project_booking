@@ -74,6 +74,7 @@ class cached_property(object):
 
 
 def get_calendar_lookup():
+    print(f'Reading calendar lookup table from {CALENDAR_LOOKUP_PATH.absolute()}')
     return pd.read_csv(CALENDAR_LOOKUP_PATH, index_col='channel_id')
 
 
