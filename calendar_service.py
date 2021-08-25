@@ -5,6 +5,8 @@ from pytz import timezone
 
 from utils import cached_property, get_consecutive_event, get_following_event
 
+CALENDARS_TO_IGNORE = {'Scheduler', 'Blocker'}
+
 
 class CalendarService:
     def __init__(self, service):
@@ -15,7 +17,7 @@ class CalendarService:
         return {
             item['summary']: item['id'] for item in self.service.calendarList().list().execute()['items']
             if item['accessRole'] == 'owner' and
-               not item['summary'] == 'Scheduler'
+               not item['summary'] in CALENDARS_TO_IGNORE
         }
 
     @cached_property
