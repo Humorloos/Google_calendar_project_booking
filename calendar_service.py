@@ -11,13 +11,16 @@ class CalendarService:
         self.service = service
 
     @cached_property
-    def calendar_ids(self):
-        return [
-            item['id']
-            for item in self.service.calendarList().list().execute()['items']
+    def calendar_dict(self):
+        return {
+            item['summary']: item['id'] for item in self.service.calendarList().list().execute()['items']
             if item['accessRole'] == 'owner' and
                not item['summary'] == 'Scheduler'
-        ]
+        }
+
+    @cached_property
+    def calendar_ids(self):
+        return [calendar_id for calendar_id in self.calendar_dict.values()]
 
     @cached_property
     def timezone(self):
@@ -157,11 +160,6 @@ class CalendarService:
         if color_id is not None:
             body['colorId'] = color_id
         self.service.events().insert(calendarId=calendar_id, body=body).execute()
-
-    def calendar_id_from_summary(self, summary):
-        return next(
-            item for item in self.service.calendarList().list().execute()['items'] if item['summary'] == summary
-        )['id']
 
     def extract_local_datetime_or_nat(self, dict_in):
         if 'dateTime' in dict_in.keys():

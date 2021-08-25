@@ -78,7 +78,7 @@ def main():
         start_timestamp=calendar_service.get_local_datetime(day=START_DAY, time=START_TIME),
         duration=PROJECT_DURATION,
         feierabend=FEIERABEND,
-        target_calendar_id=calendar_service.calendar_id_from_summary(TARGET_CALENDAR_NAME),
+        target_calendar_id=calendar_service.calendar_dict[TARGET_CALENDAR_NAME],
         target_event_description=PROJECT_DESCRIPTION,
         target_event_summary=PROJECT_SUMMARY + PROJECT_SUFFIX,
         target_event_color_id=COLOR_ID,
