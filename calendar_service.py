@@ -1,3 +1,5 @@
+from typing import Tuple, List, Dict, Optional
+
 import pandas as pd
 import datetime as dt
 
@@ -33,16 +35,25 @@ class CalendarService:
         events, sync_token = self.get_events_and_next_sync_token(calendar_id, query, sync_token, time_max, time_min)
         return pd.DataFrame(events), sync_token
 
-    def get_events_and_next_sync_token(self, calendar_id, query, sync_token, time_max, time_min):
+    def get_events_and_next_sync_token(self, calendar_id: str, query: Optional[str], sync_token: Optional[str],
+                                       time_max: Optional[str], time_min: Optional[str]) -> Tuple[List[Dict], str]:
+        """
+        Gets all events subject to the provided parameters as returned by google api and the sync token to find updated
+        events with the next request
+        :param calendar_id: id of the calendar from which to retrieve the events
+        :param query: query for filtering events in the google api call
+        :param sync_token: last sync token to only get updated events
+        :param time_max: latest time that events may start
+        :param time_min: earliest time that events may end
+        :return: List of all events satisfying the specified conditions and the new sync token
+        """
         updated_events_list_response = self.service.events().list(
             calendarId=calendar_id,
             syncToken=sync_token,
             maxResults=2500,
             singleEvents=True,
             q=query,
-            # latest time that events may start
             timeMax=time_max,
-            # earliest time that events may end
             timeMin=time_min,
         ).execute()
         events = updated_events_list_response['items']
@@ -53,19 +64,28 @@ class CalendarService:
                 maxResults=2500,
                 singleEvents=True,
                 q=query,
-                # latest time that events may start
                 timeMax=time_max,
-                # earliest time that events may end
                 timeMin=time_min,
                 pageToken=updated_events_list_response['nextPageToken'],
             ).execute()
             events.extend(updated_events_list_response['items'])
-        sync_token = updated_events_list_response['nextSyncToken']
-        return events, sync_token
+        return events, updated_events_list_response['nextSyncToken']
 
-    def create_events_in_windows(self, calendar_ids, start_timestamp, duration,
-                                 target_event_summary, target_event_description, target_calendar_id, feierabend,
-                                 target_event_color_id=None):
+    def create_events_in_windows(self, start_timestamp: pd.Timestamp, duration: pd.Timedelta, target_calendar_id: str,
+                                 target_event_summary: str, target_event_description: str, calendar_ids: List[str],
+                                 feierabend: dt.time, target_event_color_id: Optional[int] = None) -> None:
+        """
+        Starting at the specified time, creates events at all slots that are empty in all specified calendars
+        :param start_timestamp: datetime at which to start creating events
+        :param duration: total duration created events should cover
+        :param target_calendar_id: id of the calendar in which to create the events
+        :param target_event_summary: summary of the events to create
+        :param target_event_description: description of the events to create
+        :param calendar_ids: ids of the calendars whose events should not be covered when creating new events
+        :param feierabend: latest time that created events may end
+        :param target_event_color_id: color id of the events to create (see
+        https://lukeboyle.com/blog/posts/google-calendar-api-color-id)
+        """
         time_windows = pd.DataFrame(columns=['start', 'end'])
         remaining_duration = duration
         first_week = True
@@ -95,8 +115,10 @@ class CalendarService:
             # ).execute())]
             if first_week:
                 current_event = events.loc[0]
-            # find all time windows for the current day
+                first_week = False
+            # find all time windows for this week
             while True:
+                # If the last event of the week was reached, add time window until end of day if necessary and exit loop
                 if current_event.name == events.index.max():
                     if current_event['end'].time() < feierabend:
                         time_windows = time_windows.append({
@@ -104,6 +126,7 @@ class CalendarService:
                             'end': self.get_local_datetime(window_start.date(), feierabend)
                         }, ignore_index=True)
                     break
+
                 # check if there is an adjacent/overlapping event
                 consecutive_event = get_consecutive_event(event=current_event, event_data=events)
                 if consecutive_event is None:
@@ -122,8 +145,8 @@ class CalendarService:
                     window_width = window_end - window_start
                     if window_width > pd.Timedelta(minutes=15):
                         if window_width < remaining_duration:
-                            time_windows = time_windows.append({'start': window_start, 'end': window_end},
-                                                               ignore_index=True)
+                            time_windows = time_windows.append(
+                                {'start': window_start, 'end': window_end}, ignore_index=True)
                             remaining_duration -= window_width
                         else:
                             time_windows = time_windows.append(
@@ -137,9 +160,8 @@ class CalendarService:
 
         # create events for all time windows
         for _, row in time_windows.iterrows():
-            self.create_event(start=row['start'], end=row['end'],
-                              summary=target_event_summary, description=target_event_description,
-                              color_id=target_event_color_id,
+            self.create_event(start=row['start'], end=row['end'], summary=target_event_summary,
+                              description=target_event_description, color_id=target_event_color_id,
                               calendar_id=target_calendar_id)
 
     def local_datetime_from_string(self, datetime_string):
