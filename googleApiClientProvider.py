@@ -20,17 +20,22 @@ class GoogleApiClientProvider:
         # The file token.json stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
         # time.
+        print(f'Trying to fetch token from {TOKEN_PATH.absolute()}')
         if os.path.exists(TOKEN_PATH):
+            print('Token found, using token for authorization')
             creds = Credentials.from_authorized_user_file(TOKEN_PATH, self.scopes)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
+                print('Token is expired, refreshing token')
                 creds.refresh(Request())
             else:
+                print(f'Token not found, creating new token from credentials at {CREDENTIALS_PATH.absolute()}')
                 flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, self.scopes)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
             with open(TOKEN_PATH, 'w') as token:
+                print(f'Saving new token to {CREDENTIALS_PATH.absolute()}')
                 token.write(creds.to_json())
         return creds
 
