@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 from flask import Flask, request
@@ -95,12 +96,22 @@ class CalendarHandler(Resource):
                             ).execute()
 
                     updated_projects.add(updated_event['summary'])
+
+                # Check if event is supposed to be split (or moved)
                 if 'colorId' in updated_event.index and updated_event['colorId'] == SPLIT_COLOR_ID:
-                    end_timestamp = calendar_service.local_datetime_from_string(updated_event['end']['dateTime'])
+
+                    start_timestamp, end_timestamp = (
+                        calendar_service.local_datetime_from_string(updated_event[field]['dateTime'])
+                        for field in ('start', 'end')
+                    )
                     feierabend_timestamp = calendar_service.get_local_datetime(end_timestamp.date(), FEIERABEND)
-                    split_timestamp = None
+                    split_timestamp: Optional[pd.Timestamp] = None
+
+                    # if event is longer than Feierabend, split at Feierabend
                     if end_timestamp > feierabend_timestamp:
                         split_timestamp = feierabend_timestamp
+                    # otherwise split at next interrupting event or move event (set split timestamp to start of updated
+                    # event)
                     else:
                         interrupting_events = pd.DataFrame()
                         for calendar_id in calendar_lookup['calendar_id'].values:
@@ -114,23 +125,34 @@ class CalendarHandler(Resource):
                             (interrupting_events['id'] != updated_event['id']) &
                             (interrupting_events['start'].apply(lambda start_dict: 'dateTime' in start_dict.keys()))
                             ]
+
                         if len(interrupting_events) > 0:
-                            split_timestamp = interrupting_events['start'].apply(
-                                calendar_service.extract_local_datetime_or_nat).min()
+                            split_timestamp = max(
+                                interrupting_events['start'].apply(
+                                    calendar_service.extract_local_datetime_or_nat).min(),
+                                start_timestamp,
+                            )
+
+                    # perform splitting or moving
                     if split_timestamp is not None:
-                        duration_to_trim = end_timestamp - split_timestamp
+                        # if event shall be moved, remove event
+                        if split_timestamp == start_timestamp:
+                            calendar_service.service.events().delete(
+                                calendarId=target_calendar_id,
+                                eventId=updated_event['id'],
+                            ).execute()
+                        # otherwise update event to end at split timestamp
+                        else:
+                            updated_event = event_row_to_body(updated_event)
+                            del updated_event['colorId']
+                            updated_event['end']['dateTime'] = split_timestamp.isoformat()
+                            calendar_service.service.events().update(
+                                calendarId=target_calendar_id,
+                                eventId=updated_event['id'],
+                                body=updated_event
+                            ).execute()
 
-                        # update event to end at split timestamp
-                        updated_event = event_row_to_body(updated_event)
-                        del updated_event['colorId']
-                        updated_event['end']['dateTime'] = split_timestamp.isoformat()
-                        calendar_service.service.events().update(
-                            calendarId=target_calendar_id,
-                            eventId=updated_event['id'],
-                            body=updated_event
-                        ).execute()
-
-                        # create new event starting at next free position and ending after time cut from original
+                        # create new events starting at next free position and ending after time cut from original
                         # event that is otherwise identical
                         if 'description' in updated_event.keys():
                             description = updated_event['description']
@@ -139,7 +161,7 @@ class CalendarHandler(Resource):
                         calendar_service.create_events_in_windows(
                             calendar_ids=calendar_lookup['calendar_id'].values,
                             start_timestamp=split_timestamp,
-                            duration=duration_to_trim,
+                            duration=end_timestamp - split_timestamp,
                             target_event_summary=updated_event['summary'],
                             target_event_description=description,
                             target_calendar_id=target_calendar_id,
