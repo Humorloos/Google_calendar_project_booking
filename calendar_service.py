@@ -171,7 +171,8 @@ class CalendarService:
     def get_local_datetime(self, day, time):
         return pd.Timestamp(dt.datetime.combine(day, time), tzinfo=self.timezone)
 
-    def create_event(self, start, end, summary, calendar_id='primary', color_id=None, **optional_fields):
+    def create_event(self, start: pd.Timestamp, end: pd.Timestamp, summary: str, calendar_id: str = 'primary',
+                     color_id: int = None, **optional_fields):
         body = {
             'start': {'dateTime': start.isoformat()},
             'end': {'dateTime': end.isoformat()},
@@ -180,7 +181,13 @@ class CalendarService:
         }
         if color_id is not None:
             body['colorId'] = color_id
+        self.insert_event(body, calendar_id)
+
+    def insert_event(self, body, calendar_id):
         self.service.events().insert(calendarId=calendar_id, body=body).execute()
+
+    def delete_event(self, calendar_id, event_id):
+        self.service.events().delete(calendarId=calendar_id, eventId=event_id, ).execute()
 
     def extract_local_datetime_or_nat(self, dict_in):
         if 'dateTime' in dict_in.keys():

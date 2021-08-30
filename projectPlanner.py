@@ -8,7 +8,7 @@ import pandas as pd
 import googleApiScopes.calendar
 import googleApiScopes.tasks
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import PROJECT_SUFFIX
+from utils import PROJECT_ARGUMENT
 
 SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY,
           googleApiScopes.calendar.EVENTS,
@@ -79,7 +79,7 @@ def main():
         duration=PROJECT_DURATION,
         feierabend=FEIERABEND,
         target_calendar_id=calendar_service.calendar_dict[TARGET_CALENDAR_NAME],
-        target_event_summary=PROJECT_SUMMARY + PROJECT_SUFFIX,
+        target_event_summary=PROJECT_SUMMARY + PROJECT_ARGUMENT,
         target_event_color_id=COLOR_ID,
         description=PROJECT_DESCRIPTION,
     )

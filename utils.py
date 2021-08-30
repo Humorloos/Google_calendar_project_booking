@@ -7,7 +7,7 @@ CALENDAR_LOOKUP_PATH = RESOURCES_PATH.joinpath('calendar_lookup.csv')
 GOOGLE_API_PATH = RESOURCES_PATH.joinpath('google_api')
 TOKEN_PATH = GOOGLE_API_PATH.joinpath('token.json')
 CREDENTIALS_PATH = GOOGLE_API_PATH.joinpath('credentials.json')
-PROJECT_SUFFIX = ' -p'
+PROJECT_ARGUMENT = ' -p'
 
 
 def get_consecutive_event(event, event_data, precision=0):

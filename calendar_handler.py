@@ -4,14 +4,14 @@ from functools import cached_property
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
-
+import shlex
 import pandas as pd
 from flask import Flask, request
 from flask_restful import Resource, Api
 
 import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_SUFFIX, event_row_to_body
+from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_ARGUMENT, event_row_to_body
 
 FEIERABEND = dt.time(20)
 
@@ -19,7 +19,8 @@ CHANNEL_ID_KEY = 'X-Goog-Channel-Id'
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
 # Color ID that shall trigger splitting events (see https://lukeboyle.com/blog/posts/google-calendar-api-color-id)
 SPLIT_COLOR_ID = '8'
-OPTIONAL_EVENT_FIELDS = ('description', 'location')
+OPTIONAL_EVENT_FIELDS = ('description', 'location', 'colorId')
+SWITCH_CALENDAR_ARGUMENT = '-m'
 
 app = Flask(__name__)
 api = Api(app)
@@ -67,10 +68,10 @@ class CalendarHandler(Resource):
 
         # get updated events
         calendar_row = self.calendar_lookup.loc[channel_id]
-        target_calendar_id = calendar_row['calendar_id']
+        source_calendar_id = calendar_row['calendar_id']
         updated_events, self.next_sync_token = calendar_service.get_event_df_and_next_sync_token(
             sync_token=calendar_row['sync_token'],
-            calendar_id=target_calendar_id,
+            calendar_id=source_calendar_id,
         )
 
         if len(updated_events) > 0 and 'updated' in updated_events.columns:
@@ -79,13 +80,13 @@ class CalendarHandler(Resource):
             # remember projects that were already updated to update each project only once
             updated_projects = set()
             for _, updated_event in updated_events.iterrows():
+                summary_args = shlex.split(updated_event['summary'])
                 # only trigger updates for events that belong to a project that hasn't been updated so far
-                if updated_event['summary'].endswith(PROJECT_SUFFIX) and \
-                        updated_event['summary'] not in updated_projects:
+                if PROJECT_ARGUMENT in summary_args and updated_event['summary'] not in updated_projects:
 
                     # get events that belong to this project
                     project_events, self.next_sync_token = calendar_service.get_event_df_and_next_sync_token(
-                        calendar_id=target_calendar_id,
+                        calendar_id=source_calendar_id,
                         query=updated_event['summary'][:-3],
                     )
 
@@ -97,7 +98,7 @@ class CalendarHandler(Resource):
                                 project_event['description'] != new_description:
                             project_event['description'] = new_description
                             calendar_service.service.events().update(
-                                calendarId=target_calendar_id,
+                                calendarId=source_calendar_id,
                                 eventId=project_event['id'],
                                 body=event_row_to_body(project_event),
                             ).execute()
@@ -106,7 +107,23 @@ class CalendarHandler(Resource):
 
                 # Check if event is supposed to be split (or moved)
                 if 'colorId' in updated_event.index and updated_event['colorId'] == SPLIT_COLOR_ID:
-                    self.split_or_move_event(target_calendar_id, updated_event)
+                    self.split_or_move_event(source_calendar_id, updated_event)
+
+                if SWITCH_CALENDAR_ARGUMENT in summary_args:
+                    # create new event in target calendar
+                    target_calendar_summary = summary_args.pop(summary_args.index(SWITCH_CALENDAR_ARGUMENT) + 1)
+                    summary_args.remove(SWITCH_CALENDAR_ARGUMENT)
+                    optional_fields = {
+                        field: updated_event[field] for field in OPTIONAL_EVENT_FIELDS if field in updated_event.keys()}
+                    calendar_service.create_event(
+                        start=calendar_service.local_datetime_from_string(updated_event['start']['dateTime']),
+                        end=calendar_service.local_datetime_from_string(updated_event['end']['dateTime']),
+                        summary=shlex.join(summary_args),
+                        calendar_id=calendar_service.calendar_dict[target_calendar_summary],
+                        **optional_fields,
+                    )
+                    # remove event from source calendar
+                    calendar_service.delete_event(source_calendar_id, updated_event['id'])
 
         # remember the last time we retrieved events for next update
         self.calendar_lookup.loc[channel_id, 'sync_token'] = self.next_sync_token
@@ -150,10 +167,7 @@ class CalendarHandler(Resource):
         if split_timestamp is not None:
             # if event shall be moved, remove event
             if split_timestamp == start_timestamp:
-                calendar_service.service.events().delete(
-                    calendarId=target_calendar_id,
-                    eventId=updated_event['id'],
-                ).execute()
+                calendar_service.delete_event(target_calendar_id, updated_event['id'])
             # otherwise update event to end at split timestamp
             else:
                 updated_event = event_row_to_body(updated_event)
