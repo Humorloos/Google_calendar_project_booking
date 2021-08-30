@@ -17,11 +17,11 @@ SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY,
 # Day at which to start creating events
 START_DAY = dt.date.today()
 # Time at which to start creating events
-START_TIME = dt.datetime.now().time()
+START_TIME = dt.datetime.utcnow().time()
 # Time after which not to create any more events
 FEIERABEND = dt.time(20)
 # Estimated duration of the project to book
-PROJECT_DURATION = pd.Timedelta(hours=42, minutes=30)
+PROJECT_DURATION = pd.Timedelta(hours=20, minutes=15)
 # Name of calendar to create events in
 TARGET_CALENDAR_NAME = 'Privat'
 # color id for events to create, see https://lukeboyle.com/blog/posts/google-calendar-api-color-id
@@ -29,22 +29,22 @@ COLOR_ID = 7
 # # Time to block for tasks
 # TASK_DURATION = dt.timedelta(minutes=15)
 # Summary for the events to create for the project
-PROJECT_SUMMARY = 'IE 674 PRüfungsvorbereitung'
+PROJECT_SUMMARY = 'IE 674 Prüfungsvorbereitung'
 # Description for the events to create for the project
 PROJECT_DESCRIPTION = """Prüfungsvorbereitung
 Karten
-1825 2:00:00 rest 1:15
-1708 2:00:00
-1590 2:00:00
-1473 2:00:00
-1355 2:00:00
-1238 2:00:00
-1120 2:00:00
-1003 2:00:00
-885 2:00:00
-767 2:00:00
-650 2:00:00
-532 2:00:00
+1825 2:00:00 ✅
+1708 2:00:00 ✅
+1590 2:00:00 ✅
+1473 2:00:00 ✅
+1355 2:00:00 ✅
+1238 2:00:00 ✅
+1120 2:00:00 ✅
+1003 2:00:00 ✅
+885 2:00:00 ✅
+767 2:00:00 ✅
+650 2:00:00 ✅
+532 2:00:00 rest: 1:00
 415 2:00:00
 297 2:00:00
 180 2:00:00
@@ -79,9 +79,9 @@ def main():
         duration=PROJECT_DURATION,
         feierabend=FEIERABEND,
         target_calendar_id=calendar_service.calendar_dict[TARGET_CALENDAR_NAME],
-        target_event_description=PROJECT_DESCRIPTION,
         target_event_summary=PROJECT_SUMMARY + PROJECT_SUFFIX,
         target_event_color_id=COLOR_ID,
+        description=PROJECT_DESCRIPTION,
     )
 
 

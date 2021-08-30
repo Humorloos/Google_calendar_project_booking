@@ -1,4 +1,5 @@
 import os.path
+from functools import cached_property
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -6,7 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from calendar_service import CalendarService
-from utils import cached_property, TOKEN_PATH, CREDENTIALS_PATH
+from utils import TOKEN_PATH, CREDENTIALS_PATH
 
 
 class GoogleApiClientProvider:

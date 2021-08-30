@@ -5,7 +5,8 @@ import datetime as dt
 
 from pytz import timezone
 
-from utils import cached_property, get_consecutive_event, get_following_event
+from utils import get_consecutive_event, get_following_event
+from functools import cached_property
 
 CALENDARS_TO_IGNORE = {'Scheduler', 'Blocker'}
 
@@ -72,19 +73,20 @@ class CalendarService:
         return events, updated_events_list_response['nextSyncToken']
 
     def create_events_in_windows(self, start_timestamp: pd.Timestamp, duration: pd.Timedelta, target_calendar_id: str,
-                                 target_event_summary: str, target_event_description: str, calendar_ids: List[str],
-                                 feierabend: dt.time, target_event_color_id: Optional[int] = None) -> None:
+                                 target_event_summary: str, calendar_ids: List[str],
+                                 feierabend: dt.time, target_event_color_id: Optional[int] = None,
+                                 **optional_fields) -> None:
         """
         Starting at the specified time, creates events at all slots that are empty in all specified calendars
         :param start_timestamp: datetime at which to start creating events
         :param duration: total duration created events should cover
         :param target_calendar_id: id of the calendar in which to create the events
         :param target_event_summary: summary of the events to create
-        :param target_event_description: description of the events to create
         :param calendar_ids: ids of the calendars whose events should not be covered when creating new events
         :param feierabend: latest time that created events may end
         :param target_event_color_id: color id of the events to create (see
         https://lukeboyle.com/blog/posts/google-calendar-api-color-id)
+        :param optional_fields: additional fields like 'location' or 'description' to add to the created events
         """
         time_windows = pd.DataFrame(columns=['start', 'end'])
         remaining_duration = duration
@@ -161,8 +163,7 @@ class CalendarService:
         # create events for all time windows
         for _, row in time_windows.iterrows():
             self.create_event(start=row['start'], end=row['end'], summary=target_event_summary,
-                              description=target_event_description, color_id=target_event_color_id,
-                              calendar_id=target_calendar_id)
+                              color_id=target_event_color_id, calendar_id=target_calendar_id, **optional_fields)
 
     def local_datetime_from_string(self, datetime_string):
         return pd.Timestamp(datetime_string).tz_convert(self.timezone)
@@ -170,16 +171,12 @@ class CalendarService:
     def get_local_datetime(self, day, time):
         return pd.Timestamp(dt.datetime.combine(day, time), tzinfo=self.timezone)
 
-    def create_event(self, start, end, summary, description='', calendar_id='primary', color_id=None):
+    def create_event(self, start, end, summary, calendar_id='primary', color_id=None, **optional_fields):
         body = {
-            'start': {
-                'dateTime': start.isoformat()
-            },
-            'end': {
-                'dateTime': end.isoformat()
-            },
+            'start': {'dateTime': start.isoformat()},
+            'end': {'dateTime': end.isoformat()},
             'summary': summary,
-            'description': description,
+            **optional_fields,
         }
         if color_id is not None:
             body['colorId'] = color_id
