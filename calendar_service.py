@@ -1,12 +1,11 @@
+import datetime as dt
+from functools import cached_property
 from typing import Tuple, List, Dict, Optional
 
 import pandas as pd
-import datetime as dt
-
 from pytz import timezone
 
 from utils import get_consecutive_event, get_following_event
-from functools import cached_property
 
 CALENDARS_TO_IGNORE = {'Scheduler', 'Blocker'}
 
@@ -194,3 +193,10 @@ class CalendarService:
             return self.local_datetime_from_string(dict_in['dateTime'])
         else:
             return pd.NaT
+
+    def update_event(self, body, calendar_id):
+        self.service.events().update(
+            calendarId=calendar_id,
+            eventId=body['id'],
+            body=body,
+        ).execute()

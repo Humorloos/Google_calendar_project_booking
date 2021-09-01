@@ -97,11 +97,8 @@ class CalendarHandler(Resource):
                                 project_event['summary'] == updated_event['summary'] and \
                                 project_event['description'] != new_description:
                             project_event['description'] = new_description
-                            calendar_service.service.events().update(
-                                calendarId=source_calendar_id,
-                                eventId=project_event['id'],
-                                body=event_row_to_body(project_event),
-                            ).execute()
+                            calendar_service.update_event(
+                                body=event_row_to_body(project_event), calendar_id=source_calendar_id)
 
                     updated_projects.add(updated_event['summary'])
 
@@ -124,6 +121,14 @@ class CalendarHandler(Resource):
                     )
                     # remove event from source calendar
                     calendar_service.delete_event(source_calendar_id, updated_event['id'])
+
+                if calendar_row['name'] == 'Arbeit' and (
+                        'transparency' not in updated_event.index or
+                        pd.isnull(updated_event['transparency'])
+                ):
+                    updated_event['transparency'] = 'transparent'
+                    calendar_service.update_event(
+                        body=event_row_to_body(updated_event), calendar_id=source_calendar_id)
 
         # remember the last time we retrieved events for next update
         self.calendar_lookup.loc[channel_id, 'sync_token'] = self.next_sync_token
