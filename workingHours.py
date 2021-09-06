@@ -3,10 +3,11 @@ import datetime as dt
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
+import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
 from utils import get_consecutive_event, get_following_event
 
-SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY]
 START_DATE = dt.date(year=2021, month=8, day=1)
 
 if __name__ == '__main__':
