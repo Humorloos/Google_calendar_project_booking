@@ -3,63 +3,49 @@ import datetime as dt
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
-from utils import get_local_datetime, local_datetime_from_string, get_consecutive_event, \
-    get_following_event
-from googleApiClientProvider import get_google_calendar_service
+from googleApiClientProvider import GoogleApiClientProvider
+from utils import get_consecutive_event, get_following_event
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-START_DATE = dt.date(year=2021, month=7, day=1)
+START_DATE = dt.date(year=2021, month=8, day=1)
 
 if __name__ == '__main__':
-    service = get_google_calendar_service(SCOPES)
-    work_calendar_id = next(item['id'] for item in service.calendarList().list().execute()['items'] if
-                            item['summary'] == 'Arbeit')
-    start_datetime = get_local_datetime(START_DATE, dt.time(0))
-    events = service.events().list(
-        calendarId=work_calendar_id,
-        timeMin=start_datetime.isoformat(),
-        singleEvents=True,
-        orderBy='startTime',
-        timeMax=(start_datetime + relativedelta(months=1)).isoformat()
-    ).execute()['items']
-    event_data = pd.DataFrame(columns=['summary', 'start', 'end'])
-    for event in events:
-        if 'dateTime' in event['start'].keys():
-            event_data = event_data.append({
-                'summary': event['summary'],
-                'start': local_datetime_from_string(event['start']['dateTime']),
-                'end': local_datetime_from_string(event['end']['dateTime'])
-            }, ignore_index=True)
-    current_date = START_DATE
-    out = pd.DataFrame(columns=['datum', 'von', 'bis', 'pause'])
-    while current_date < START_DATE + relativedelta(months=1):
-        current_date_event_data = event_data[
-            (event_data['start'] >= get_local_datetime(current_date, dt.time(0))) &
-            (event_data['end'] < get_local_datetime(current_date + pd.Timedelta(days=1), dt.time(0)))
-            ]
-        current_date += pd.Timedelta(days=1)
-        if current_date_event_data.empty:
-            continue
-        current_event = current_date_event_data.loc[current_date_event_data['start'].idxmin()]
+    calendar_service = GoogleApiClientProvider(SCOPES).get_calendar_service()
+    start_datetime = calendar_service.get_local_datetime(START_DATE, dt.time(0))
+    events = calendar_service.get_event_df_and_next_sync_token(
+        calendar_id=calendar_service.calendar_dict['Arbeit'],
+        time_min=start_datetime.isoformat(),
+        time_max=(start_datetime + relativedelta(months=1)).isoformat(),
+    )[0]
+    events[['start', 'end']] = events[['start', 'end']].applymap(calendar_service.extract_local_datetime_or_nat)
+    events['date'] = events['start'].apply(lambda start: start.date())
+    events_by_date = events.sort_values(by='start').groupby(by='date')
+
+
+    def get_working_hours(event_df):
+        current_event = event_df.iloc[0]
         datum = current_event['start'].strftime('%d.%m.%Y')
         von = current_event['start'].strftime("%H:%M")
         pause = pd.Timedelta(0)
         while True:
-            try:
-                # check if there is an adjacent/overlapping event (within 15 minutes)
-                current_event = get_consecutive_event(
-                    event=current_event, event_data=current_date_event_data, precision=15)
-            except ValueError:
+            # check if there is an adjacent/overlapping event (within 15 minutes)
+            consecutive_event = get_consecutive_event(event=current_event, event_data=event_df, precision=15)
+            if consecutive_event is not None:
+                current_event = consecutive_event
+            else:
                 # if not, add the time window and jump to the next event
                 # ceil to 15 minutes to handle odd meeting times
                 # (see https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases)
                 window_start = current_event['end'].ceil('15min')
-                try:
-                    # go to first event after end of current event
-                    current_event = get_following_event(event=current_event, event_data=current_date_event_data)
-                except ValueError:
+                # go to first event after end of current event
+                following_event = get_following_event(event=current_event, event_data=event_df)
+                if following_event is None:
+                    # if no more events are left this day, go to next day
                     bis = current_event['end'].strftime("%H:%M")
                     break
+                current_event = following_event
                 pause += current_event['start'] - window_start
-        out = out.append({'datum': datum, 'von': von, 'bis': bis, 'pause': pause.seconds // 60}, ignore_index=True)
-    out.to_csv('target/Zeiterfassung.csv', index=False)
+        return pd.Series({'datum': datum, 'von': von, 'bis': bis, 'pause': pause.seconds // 60})
+
+
+    events_by_date.apply(get_working_hours).to_csv('target/Zeiterfassung.csv', index=False)

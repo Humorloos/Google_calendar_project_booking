@@ -25,11 +25,14 @@ def get_consecutive_event(event, event_data, precision=0):
 
 
 def get_following_event(event, event_data):
-    return event_data.loc[
-        event_data[
-            event_data['start'] - event['end'] > pd.Timedelta(0)
-            ]['start'].idxmin()
-    ]
+    """
+    Gets earliest starting event starting after given event from given event_data.
+    """
+    following_event_start_times = event_data[event_data['start'] - event['end'] > pd.Timedelta(0)]['start']
+    if len(following_event_start_times) > 0:
+        return event_data.loc[following_event_start_times.idxmin()]
+    else:
+        return None
 
 
 def get_calendar_lookup():
