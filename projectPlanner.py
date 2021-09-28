@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import datetime as dt
 from typing import Dict
 
@@ -10,9 +8,17 @@ import googleApiScopes.tasks
 from googleApiClientProvider import GoogleApiClientProvider
 from utils import PROJECT_ARGUMENT
 
-SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY,
-          googleApiScopes.calendar.EVENTS,
-          googleApiScopes.tasks.TASKS_READ_ONLY]
+# Summary for the events to create for the project
+PROJECT_SUMMARY = 'CS 715 Research and Analysis'
+# Description for the events to create for the project
+PROJECT_DESCRIPTION = """recherche	8h
+data analysis	4h"""
+# Estimated duration of the project to book
+PROJECT_DURATION = pd.Timedelta(hours=12, minutes=0)
+# color id for events to create, see https://lukeboyle.com/blog/posts/google-calendar-api-color-id
+COLOR_ID = 7
+# Name of calendar to create events in
+TARGET_CALENDAR_NAME = 'Privat'
 
 # Day at which to start creating events
 START_DAY = dt.date.today()
@@ -20,48 +26,12 @@ START_DAY = dt.date.today()
 START_TIME = dt.datetime.utcnow().time()
 # Time after which not to create any more events
 FEIERABEND = dt.time(20)
-# Estimated duration of the project to book
-PROJECT_DURATION = pd.Timedelta(hours=20, minutes=15)
-# Name of calendar to create events in
-TARGET_CALENDAR_NAME = 'Privat'
-# color id for events to create, see https://lukeboyle.com/blog/posts/google-calendar-api-color-id
-COLOR_ID = 7
 # # Time to block for tasks
 # TASK_DURATION = dt.timedelta(minutes=15)
-# Summary for the events to create for the project
-PROJECT_SUMMARY = 'IE 674 Prüfungsvorbereitung'
-# Description for the events to create for the project
-PROJECT_DESCRIPTION = """Prüfungsvorbereitung
-Karten
-1825 2:00:00 ✅
-1708 2:00:00 ✅
-1590 2:00:00 ✅
-1473 2:00:00 ✅
-1355 2:00:00 ✅
-1238 2:00:00 ✅
-1120 2:00:00 ✅
-1003 2:00:00 ✅
-885 2:00:00 ✅
-767 2:00:00 ✅
-650 2:00:00 ✅
-532 2:00:00 rest: 1:00
-415 2:00:00
-297 2:00:00
-180 2:00:00
-62 2:00:00
-0 0:45:00
-Exercises
-Exercise 1 durchgehen 0:45:00
-Exercise 2 durchgehen 0:45:00
-Exercise 3 durchgehen 0:45:00
-Exercise 4 durchgehen 0:45:00
-Exercise 5 durchgehen 0:45:00
-Exercise 6 durchgehen 0:45:00
-Assignments
-Assignment 1 durchgehen 2:00:00
-Assignment 2 durchgehen 2:00:00
-Assignment 3 durchgehen 2:00:00
-gesamt 43:15:00"""
+
+SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY,
+          googleApiScopes.calendar.EVENTS,
+          googleApiScopes.tasks.TASKS_READ_ONLY]
 
 
 def main():
