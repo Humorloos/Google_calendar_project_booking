@@ -49,7 +49,7 @@ def main():
         duration=PROJECT_DURATION,
         feierabend=FEIERABEND,
         target_calendar_id=calendar_service.calendar_dict[TARGET_CALENDAR_NAME],
-        target_event_summary=PROJECT_SUMMARY + PROJECT_ARGUMENT,
+        target_event_summary=f"{PROJECT_SUMMARY} {PROJECT_ARGUMENT}",
         target_event_color_id=COLOR_ID,
         description=PROJECT_DESCRIPTION,
     )
