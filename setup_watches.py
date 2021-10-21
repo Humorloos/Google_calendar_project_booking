@@ -8,12 +8,12 @@ import pandas as pd
 
 import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import CALENDAR_LOOKUP_PATH, get_calendar_lookup
+from utils import CALENDAR_LOOKUP_PATH, get_calendar_lookup, GOOGLE_API_PATH
 
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
 WATCH_DURATION = str(int(dt.timedelta(days=1, hours=6).total_seconds()))
 
-client_provider = GoogleApiClientProvider(SCOPES)
+client_provider = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH)
 calendar_service = client_provider.get_calendar_service()
 
 # Close old channels

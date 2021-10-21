@@ -4,14 +4,15 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 import googleApiScopes.calendar
+from calendarUtils import get_consecutive_event, get_following_event
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_consecutive_event, get_following_event
+from utils import GOOGLE_API_PATH
 
 SCOPES = [googleApiScopes.calendar.CALENDAR_READ_ONLY]
-START_DATE = dt.date(year=2021, month=8, day=1)
+START_DATE = dt.date(year=2021, month=9, day=1)
 
 if __name__ == '__main__':
-    calendar_service = GoogleApiClientProvider(SCOPES).get_calendar_service()
+    calendar_service = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH).get_calendar_service()
     start_datetime = calendar_service.get_local_datetime(START_DATE, dt.time(0))
     events = calendar_service.get_event_df_and_next_sync_token(
         calendar_id=calendar_service.calendar_dict['Arbeit'],

@@ -11,7 +11,7 @@ from flask_restful import Resource, Api
 
 import googleApiScopes.calendar
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_ARGUMENT, event_row_to_body
+from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_ARGUMENT, event_row_to_body, GOOGLE_API_PATH
 
 FEIERABEND = dt.time(20)
 
@@ -33,7 +33,7 @@ logger.addHandler(info_filehandler)
 logger.setLevel(logging.INFO)
 
 # setup google calendar interface
-api_provider = GoogleApiClientProvider(SCOPES)
+api_provider = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH)
 calendar_service = api_provider.get_calendar_service()
 
 
