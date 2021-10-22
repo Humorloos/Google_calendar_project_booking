@@ -4,21 +4,20 @@ Script for setting up google calendar watches for specified time and save map fr
 import datetime as dt
 import sys
 import uuid
-from pathlib import Path
 
 import pandas as pd
 
+from constants import GOOGLE_API_PATH, CALENDAR_LOOKUP_PATH, PROJECT_DIR, HOOK_URL
+
 # add your project directory to the sys.path
-user_home = Path('/home/Humorloos')
-sys.path = list({path for path in [str(user_home.joinpath(project_name)) for project_name in [
-    'Google_calendar_project_booking',
+sys.path = list({path for path in [str(PROJECT_DIR.joinpath(project_name)) for project_name in [
+    'googleCalendarApp',
     'GoogleApiHelper',
-    'Bouldern'
+    'bouldernFormsApp'
 ]] + sys.path})
 
 import googleApiScopes.calendar
-from constants import GOOGLE_API_PATH, CALENDAR_LOOKUP_PATH
-from googleApiClientProvider import GoogleApiClientProvider
+from googleApiHelper.googleApiClientProvider import GoogleApiClientProvider
 from utils import get_calendar_lookup
 
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
@@ -49,7 +48,7 @@ responses = [calendar_service.service.events().watch(
         "id": channel_id,
         "token": "my token",
         "type": "web_hook",
-        "address": "https://humorloos.pythonanywhere.com/",
+        "address": f"https://humorloos.pythonanywhere.com/{HOOK_URL}/",
         "params": {
             "ttl": WATCH_DURATION
         }
