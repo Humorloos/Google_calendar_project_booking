@@ -2,9 +2,19 @@
 Script for setting up google calendar watches for specified time and save map from uuids to calendar ids
 """
 import datetime as dt
+import sys
 import uuid
+from pathlib import Path
 
 import pandas as pd
+
+# add your project directory to the sys.path
+user_home = Path('/home/Humorloos')
+sys.path = list({path for path in [str(user_home.joinpath(project_name)) for project_name in [
+    'Google_calendar_project_booking',
+    'GoogleApiHelper',
+    'Bouldern'
+]] + sys.path})
 
 import googleApiScopes.calendar
 from constants import GOOGLE_API_PATH, CALENDAR_LOOKUP_PATH
