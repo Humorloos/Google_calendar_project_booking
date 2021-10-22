@@ -7,8 +7,9 @@ import uuid
 import pandas as pd
 
 import googleApiScopes.calendar
+from constants import GOOGLE_API_PATH, CALENDAR_LOOKUP_PATH
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import CALENDAR_LOOKUP_PATH, get_calendar_lookup, GOOGLE_API_PATH
+from utils import get_calendar_lookup
 
 SCOPES = [googleApiScopes.calendar.EVENTS, googleApiScopes.calendar.CALENDAR_READ_ONLY]
 WATCH_DURATION = str(int(dt.timedelta(days=1, hours=6).total_seconds()))

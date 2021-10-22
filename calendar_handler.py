@@ -1,17 +1,16 @@
 import datetime as dt
-import logging
-from functools import cached_property
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
-from typing import Optional
 import shlex
+from functools import cached_property
+from typing import Optional
+
 import pandas as pd
-from flask import Flask, request
-from flask_restful import Resource, Api
+from flask import request
+from flask_restful import Resource
 
 import googleApiScopes.calendar
+from constants import GOOGLE_API_PATH, PROJECT_ARGUMENT, CALENDAR_LOOKUP_PATH
 from googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_lookup, CALENDAR_LOOKUP_PATH, PROJECT_ARGUMENT, event_row_to_body, GOOGLE_API_PATH
+from utils import get_calendar_lookup, event_row_to_body
 
 FEIERABEND = dt.time(20)
 
@@ -22,26 +21,9 @@ SPLIT_COLOR_ID = '8'
 OPTIONAL_EVENT_FIELDS = ('description', 'location', 'colorId')
 SWITCH_CALENDAR_ARGUMENT = '-m'
 
-app = Flask(__name__)
-api = Api(app)
-
-# setup logger
-info_filehandler = RotatingFileHandler(Path('logs').joinpath('app.log'), maxBytes=10000000, backupCount=3)
-info_filehandler.setLevel(logging.INFO)
-logger = logging.getLogger()
-logger.addHandler(info_filehandler)
-logger.setLevel(logging.INFO)
-
 # setup google calendar interface
 api_provider = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH)
 calendar_service = api_provider.get_calendar_service()
-
-
-# log all requests
-@app.before_request
-def log_request_info():
-    logger.info(f'Headers: {request.headers}')
-    logger.info(f'Body: {request.get_data()}')
 
 
 class CalendarHandler(Resource):
@@ -207,9 +189,3 @@ class CalendarHandler(Resource):
                 feierabend=FEIERABEND,
                 **optional_fields,
             )
-
-
-api.add_resource(CalendarHandler, '/')
-
-if __name__ == '__main__':
-    app.run(debug=True)
