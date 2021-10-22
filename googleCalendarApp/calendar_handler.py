@@ -8,9 +8,9 @@ from flask import request
 from flask_restful import Resource
 
 import googleApiScopes.calendar
-from constants import GOOGLE_API_PATH, PROJECT_ARGUMENT, CALENDAR_LOOKUP_PATH
 from googleApiHelper.googleApiClientProvider import GoogleApiClientProvider
-from utils import get_calendar_lookup, event_row_to_body
+from googleCalendarApp.constants import GOOGLE_API_PATH, PROJECT_ARGUMENT, CALENDAR_LOOKUP_PATH
+from googleCalendarApp.utils import get_calendar_lookup, event_row_to_body
 
 FEIERABEND = dt.time(20)
 

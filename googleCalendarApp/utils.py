@@ -1,6 +1,6 @@
 import pandas as pd
 
-from constants import CALENDAR_LOOKUP_PATH
+from googleCalendarApp.constants import CALENDAR_LOOKUP_PATH
 
 
 def get_calendar_lookup():
