@@ -4,8 +4,6 @@ from functools import cached_property
 from typing import Optional
 
 import pandas as pd
-from flask import request
-from flask_restful import Resource
 
 import googleApiScopes.calendar
 from googleApiHelper.googleApiClientProvider import GoogleApiClientProvider
@@ -26,7 +24,7 @@ api_provider = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH)
 calendar_service = api_provider.get_calendar_service()
 
 
-class CalendarHandler(Resource):
+class CalendarHandler:
     def __init__(self):
         self.next_sync_token = None
         self.updated_projects = None
@@ -39,12 +37,7 @@ class CalendarHandler(Resource):
     def get():
         return 'This page only exists to handle calendar updates'
 
-    def post(self):
-        # only react to calendar API channel posts
-        if CHANNEL_ID_KEY not in request.headers.keys():
-            return
-        channel_id = request.headers.get(CHANNEL_ID_KEY)
-
+    def post(self, channel_id):
         # only react to channels in lookup table
         if channel_id not in self.calendar_lookup.index:
             return
