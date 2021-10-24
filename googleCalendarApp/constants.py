@@ -7,4 +7,4 @@ CALENDAR_LOOKUP_PATH = RESOURCES_PATH.joinpath('calendar_lookup.csv')
 GOOGLE_API_PATH = RESOURCES_PATH.joinpath('google_api')
 
 PROJECT_ARGUMENT = '-p'
-HOOK_URL = 'calendar'
+CALENDAR_URI = 'calendar'

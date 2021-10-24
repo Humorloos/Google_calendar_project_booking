@@ -7,7 +7,7 @@ import uuid
 
 import pandas as pd
 
-from constants import GOOGLE_API_PATH, CALENDAR_LOOKUP_PATH, PROJECT_DIR, HOOK_URL
+from constants import GOOGLE_API_PATH, CALENDAR_LOOKUP_PATH, PROJECT_DIR, CALENDAR_URI
 
 # add your project directory to the sys.path
 sys.path = list({path for path in [str(PROJECT_DIR.joinpath(project_name)) for project_name in [
@@ -48,7 +48,7 @@ responses = [calendar_service.service.events().watch(
         "id": channel_id,
         "token": "my token",
         "type": "web_hook",
-        "address": f"https://humorloos.pythonanywhere.com/{HOOK_URL}/",
+        "address": f"https://humorloos.pythonanywhere.com/{CALENDAR_URI}/",
         "params": {
             "ttl": WATCH_DURATION
         }
