@@ -20,13 +20,11 @@ SPLIT_COLOR_ID = '8'
 OPTIONAL_EVENT_FIELDS = ('description', 'location', 'colorId')
 SWITCH_CALENDAR_ARGUMENT = '-m'
 
-# setup google calendar interface
-api_provider = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH)
-calendar_service = api_provider.get_calendar_service()
-
 
 class CalendarHandler:
     def __init__(self):
+        # setup google calendar interface
+        self.calendar_service = GoogleApiClientProvider(SCOPES, GOOGLE_API_PATH).get_calendar_service()
         self.next_sync_token = None
         self.updated_projects = None
 
@@ -46,7 +44,7 @@ class CalendarHandler:
         # get updated events
         calendar_row = self.calendar_lookup.loc[channel_id]
         source_calendar_id = calendar_row['calendar_id']
-        updated_events, self.next_sync_token = calendar_service.get_event_df_and_next_sync_token(
+        updated_events, self.next_sync_token = self.calendar_service.get_event_df_and_next_sync_token(
             sync_token=calendar_row['sync_token'],
             calendar_id=source_calendar_id,
         )
@@ -86,11 +84,11 @@ class CalendarHandler:
     @staticmethod
     def set_event_transparent(source_calendar_id, updated_event):
         updated_event['transparency'] = 'transparent'
-        calendar_service.update_event(body=event_row_to_body(updated_event), calendar_id=source_calendar_id)
+        self.calendar_service.update_event(body=event_row_to_body(updated_event), calendar_id=source_calendar_id)
 
     def update_project(self, source_calendar_id, updated_event):
         # get events that belong to this project
-        project_events, self.next_sync_token = calendar_service.get_event_df_and_next_sync_token(
+        project_events, self.next_sync_token = self.calendar_service.get_event_df_and_next_sync_token(
             calendar_id=source_calendar_id,
             query=updated_event['summary'][:-3],
         )
@@ -101,7 +99,7 @@ class CalendarHandler:
                     project_event['summary'] == updated_event['summary'] and \
                     project_event['description'] != new_description:
                 project_event['description'] = new_description
-                calendar_service.update_event(
+                self.calendar_service.update_event(
                     body=event_row_to_body(project_event), calendar_id=source_calendar_id)
         self.updated_projects.add(updated_event['summary'])
 
@@ -112,22 +110,22 @@ class CalendarHandler:
         summary_args.remove(SWITCH_CALENDAR_ARGUMENT)
         optional_fields = {
             field: updated_event[field] for field in OPTIONAL_EVENT_FIELDS if field in updated_event.keys()}
-        calendar_service.create_event(
-            start=calendar_service.local_datetime_from_string(updated_event['start']['dateTime']),
-            end=calendar_service.local_datetime_from_string(updated_event['end']['dateTime']),
+        self.calendar_service.create_event(
+            start=self.calendar_service.local_datetime_from_string(updated_event['start']['dateTime']),
+            end=self.calendar_service.local_datetime_from_string(updated_event['end']['dateTime']),
             summary=shlex.join(summary_args),
-            calendar_id=calendar_service.calendar_dict[target_calendar_summary],
+            calendar_id=self.calendar_service.calendar_dict[target_calendar_summary],
             **optional_fields,
         )
         # remove event from source calendar
-        calendar_service.delete_event(source_calendar_id, updated_event['id'])
+        self.calendar_service.delete_event(source_calendar_id, updated_event['id'])
 
     def split_or_move_event(self, target_calendar_id, updated_event):
         start_timestamp, end_timestamp = (
-            calendar_service.local_datetime_from_string(updated_event[field]['dateTime'])
+            self.calendar_service.local_datetime_from_string(updated_event[field]['dateTime'])
             for field in ('start', 'end')
         )
-        feierabend_timestamp = calendar_service.get_local_datetime(end_timestamp.date(), FEIERABEND)
+        feierabend_timestamp = self.calendar_service.get_local_datetime(end_timestamp.date(), FEIERABEND)
         split_timestamp: Optional[pd.Timestamp] = None
         # if event is longer than Feierabend, split at Feierabend
         if end_timestamp > feierabend_timestamp:
@@ -137,7 +135,7 @@ class CalendarHandler:
         else:
             interrupting_events = pd.DataFrame()
             for calendar_id in self.calendar_lookup['calendar_id'].values:
-                events_to_append, self.next_sync_token = calendar_service.get_event_df_and_next_sync_token(
+                events_to_append, self.next_sync_token = self.calendar_service.get_event_df_and_next_sync_token(
                     calendar_id=calendar_id,
                     time_max=updated_event['end']['dateTime'],
                     time_min=updated_event['start']['dateTime'],
@@ -151,20 +149,20 @@ class CalendarHandler:
             if len(interrupting_events) > 0:
                 split_timestamp = max(
                     interrupting_events['start'].apply(
-                        calendar_service.extract_local_datetime_or_nat).min(),
+                        self.calendar_service.extract_local_datetime_or_nat).min(),
                     start_timestamp,
                 )
         # perform splitting or moving
         if split_timestamp is not None:
             # if event shall be moved, remove event
             if split_timestamp == start_timestamp:
-                calendar_service.delete_event(target_calendar_id, updated_event['id'])
+                self.calendar_service.delete_event(target_calendar_id, updated_event['id'])
             # otherwise update event to end at split timestamp
             else:
                 updated_event = event_row_to_body(updated_event)
                 del updated_event['colorId']
                 updated_event['end']['dateTime'] = split_timestamp.isoformat()
-                calendar_service.service.events().update(
+                self.calendar_service.service.events().update(
                     calendarId=target_calendar_id,
                     eventId=updated_event['id'],
                     body=updated_event
@@ -174,7 +172,7 @@ class CalendarHandler:
             # event that is otherwise identical
             optional_fields = {
                 field: updated_event[field] for field in OPTIONAL_EVENT_FIELDS if field in updated_event.keys()}
-            calendar_service.create_events_in_windows(
+            self.calendar_service.create_events_in_windows(
                 calendar_ids=self.calendar_lookup['calendar_id'].values,
                 start_timestamp=split_timestamp,
                 duration=end_timestamp - split_timestamp,
